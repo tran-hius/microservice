@@ -1,4 +1,5 @@
 import mysql, { Pool } from 'mysql2/promise'
+import { logger } from '~/utils/logger'
 
 export class Database {
   private static instance: Pool
@@ -22,7 +23,8 @@ export class Database {
         connectionLimit: 10,
         queueLimit: 0,
         enableKeepAlive: true,
-        keepAliveInitialDelay: 0
+        keepAliveInitialDelay: 0,
+        connectTimeout: 10000
       })
     }
     return Database.instance
@@ -39,15 +41,15 @@ export class Database {
         const pool = Database.getInstance()
         const connection = await pool.getConnection()
 
-        console.log('[Database]: Kết nối MySQL thành công!')
+        logger.info('Database connected successfully')
         connection.release()
-        return // Kết nối thành công, thoát hàm
+        return
       } catch (error) {
         retries--
-        console.error(`⚠️ [Database]: MySQL chưa sẵn sàng (Còn ${retries} lần thử)...`)
+        logger.warn(`[Database]: MySQL chưa sẵn sàng (Còn ${retries} lần thử)...`, error)
 
         if (retries === 0) {
-          console.error('[Database]: Lỗi kết nối nghiêm trọng:', error)
+          logger.error('[Database]: Lỗi kết nối nghiêm trọng:', error)
           process.exit(1)
         }
 
@@ -62,8 +64,12 @@ export class Database {
    */
   public static async close(): Promise<void> {
     if (Database.instance) {
-      await Database.instance.end()
-      console.log('🔌 [Database]: Đã đóng toàn bộ kết nối MySQL.')
+      try {
+        await Database.instance.end()
+        logger.info('[Database]: Đã đóng toàn bộ kết nối MySQL.')
+      } catch (error) {
+        logger.error('[Database]: Lỗi khi đóng kết nối MySQL:', error)
+      }
     }
   }
 }
