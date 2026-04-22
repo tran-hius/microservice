@@ -28,7 +28,7 @@ export class TokenService {
   private async generateRefreshToken(userId: number): Promise<string> {
     const tokenString = crypto.randomBytes(40).toString('hex')
     const expiresAt = new Date()
-    expiresAt.setDate(expiresAt.getDate() + 7) // Hết hạn sau 7 ngày
+    expiresAt.setDate(expiresAt.getDate() + 7) 
 
     const tokenModel = new Token({
       userId,
