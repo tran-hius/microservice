@@ -18,7 +18,7 @@ export class UserRole {
     return this.props.roleId
   }
 
-  toJSON() {
+  toJson() {
     return this.props
   }
 }

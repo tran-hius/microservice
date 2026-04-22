@@ -10,11 +10,19 @@ export class Role {
     }
   }
 
+  get id() {
+    return this.props.id
+  }
+
   get name() {
     return this.props.name
   }
 
-  toJson(){
+  get description() {
+    return this.props.description
+  }
+
+  toJson() {
     return this.props
   }
 }

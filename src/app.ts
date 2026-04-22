@@ -1,8 +1,16 @@
 import express from 'express'
 const app = express()
+import { errorMiddleware } from './middlewares/error.middleware'
+import authRoutes from './routes/auth.routes'
+
+app.use(express.json())
+
+app.use('/api/v1/auth', authRoutes)
 
 app.get('/', (req, res) => {
-  res.send('Hello')
+  res.json({ ok: true })
 })
+
+app.use(errorMiddleware)
 
 export default app

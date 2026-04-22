@@ -1,6 +1,11 @@
+export enum UserRoleType {
+  ADMIN = 'ADMIN',
+  USER = 'USER',
+}
+
 export interface RoleProps {
   id?: number
-  name: string 
+  name: UserRoleType
   description?: string
   createdAt?: Date
 }

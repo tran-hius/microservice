@@ -11,17 +11,21 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE roles (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  name VARCHAR(50) UNIQUE,
-  description TEXT,
-  created_at TIMESTAMP
+  name VARCHAR(50) UNIQUE NOT NULL,
+  description TEXT
 );
 
 CREATE TABLE user_roles (
   user_id INT,
   role_id INT,
-  assigned_at TIMESTAMP,
+  assignedAt TIMESTAMP,
   PRIMARY KEY (user_id, role_id),
 
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE
 );
+
+INSERT INTO roles (name, description)
+VALUES
+('USER', 'Default user role'),
+('ADMIN', 'Admin role');
