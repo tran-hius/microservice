@@ -7,4 +7,5 @@ export interface UserProps {
   isBanned?: boolean
   createdAt?: Date
   updatedAt?: Date
+  roles?: string[]
 }

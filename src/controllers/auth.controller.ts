@@ -19,4 +19,26 @@ export class AuthController {
       next(error)
     }
   }
+
+  login = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { email, password } = req.body
+      const result = await this.authService.login(email, password)
+
+      res.cookie('refreshToken', result.refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 7 * 24 * 60 * 60 * 1000 
+      })
+
+      return res.status(200).json({
+        status: 'success',
+        message: 'User logged successfully',
+        data: result
+      })
+    } catch (error) {
+      next(error)
+    }
+  }
 }

@@ -1,30 +1,28 @@
-// src/infrastructure/repositories/MySQLUserRepository.ts
 import { Pool } from 'mysql2/promise'
-import { IAuthRepository } from '../../interfaces/auth-repository.interface'
+import { IUserRepository } from '../../interfaces/IUserRepository'
 import { User } from '../../models/auth/user'
 import { Database } from '~/config/database'
 import { logger } from '~/utils/logger'
 import { UserProps } from '~/types/auth/user.type'
 import { UserRole } from '~/models/auth/user.role'
 
-export class AuthRepository implements IAuthRepository {
+export class AuthRepository implements IUserRepository {
   private pool: Pool
 
   constructor() {
     this.pool = Database.getInstance()
   }
 
-  // Hàm phụ trợ (Helper) để "đúc" dữ liệu thô thành Class User
   private mapToModel(raw: any): User {
     return new User({
       id: raw.id,
-      fullName: raw.fullName || raw.full_name, // Dự phòng cả 2 cách đặt tên
-      userName: raw.userName || raw.user_name,
+      fullName: raw.full_name,
+      userName: raw.user_name,
       email: raw.email,
       password: raw.password,
-      isBanned: Boolean(raw.isBanned || raw.is_banned),
-      createdAt: raw.createdAt || raw.created_at,
-      updatedAt: raw.updatedAt || raw.updated_at
+      isBanned: Boolean(raw.is_banned),
+      createdAt: raw.created_at,
+      updatedAt: raw.updated_at
     })
   }
 
@@ -32,7 +30,6 @@ export class AuthRepository implements IAuthRepository {
     try {
       const [rows]: any = await this.pool.query('SELECT * FROM users WHERE id = ? LIMIT 1', [id])
 
-      // Không được trả về rows[0] trực tiếp, phải đi qua mapToModel
       return rows.length ? this.mapToModel(rows[0]) : null
     } catch (error) {
       logger.error(`[MySQLUserRepository] Lỗi findById(${id}):`, error)
@@ -41,25 +38,42 @@ export class AuthRepository implements IAuthRepository {
   }
 
   async findByEmail(email: string): Promise<User | null> {
-    try {
-      const [rows]: any = await this.pool.query('SELECT * FROM users WHERE email = ? LIMIT 1', [email])
+    const query = `
+    SELECT u.*, GROUP_CONCAT(r.name) as role_names
+    FROM users u
+    LEFT JOIN user_roles ur ON u.id = ur.user_id
+    LEFT JOIN roles r ON ur.role_id = r.id
+    WHERE u.email = ?
+    GROUP BY u.id
+  `
 
-      return rows.length ? this.mapToModel(rows[0]) : null
-    } catch (error) {
-      logger.error(`[MySQLUserRepository] Lỗi findByEmail(${email}):`, error)
-      throw error
-    }
+    const [rows]: any = await this.pool.query(query, [email])
+    if (rows.length === 0) return null
+
+    const row = rows[0]
+
+    const roles = row.role_names ? row.role_names.split(',') : []
+
+    return new User({
+      id: row.id,
+      fullName: row.full_name,
+      userName: row.user_name,
+      email: row.email,
+      password: row.password,
+      isBanned: Boolean(row.is_banned),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      roles
+    })
   }
 
   async create(user: Omit<User, 'id'>): Promise<User> {
     try {
-      // Vì 'user' truyền vào là Class Instance, ta truy cập qua getter
       const [result]: any = await this.pool.query(
-        `INSERT INTO users (fullName, userName, email, password) VALUES (?, ?, ?, ?)`,
+        `INSERT INTO users (full_name, user_name, email, password) VALUES (?, ?, ?, ?)`,
         [user.fullName, user.userName, user.email, user.password]
       )
 
-      // Cần tạo props để đúc ra instance mới có kèm ID
       const props: UserProps = {
         id: result.insertId,
         fullName: user.fullName,
@@ -80,14 +94,13 @@ export class AuthRepository implements IAuthRepository {
 
   async update(id: number, user: Partial<User>): Promise<boolean> {
     try {
-      // Lưu ý: user ở đây là Partial<User>, việc lặp Object.keys
-      // có thể lấy nhầm các phương thức private.
-      // Nên lọc ra các trường dữ liệu thực sự cần update.
       const updateData: any = {}
-      if (user.fullName) updateData.fullName = user.fullName
-      if (user.userName) updateData.userName = user.userName
+
+      if (user.fullName) updateData.full_name = user.fullName
+      if (user.userName) updateData.user_name = user.userName
       if (user.email) updateData.email = user.email
       if (user.password) updateData.password = user.password
+      if (typeof user.isBanned !== 'undefined') updateData.is_banned = user.isBanned
 
       const fields = Object.keys(updateData)
       const values = Object.values(updateData)
@@ -95,6 +108,7 @@ export class AuthRepository implements IAuthRepository {
       if (fields.length === 0) return false
 
       const setClause = fields.map((f) => `${f} = ?`).join(', ')
+
       const [result]: any = await this.pool.query(`UPDATE users SET ${setClause} WHERE id = ?`, [...values, id])
 
       return result.affectedRows > 0
@@ -107,6 +121,7 @@ export class AuthRepository implements IAuthRepository {
   async delete(id: number): Promise<boolean> {
     try {
       const [result]: any = await this.pool.query('DELETE FROM users WHERE id = ?', [id])
+
       return result.affectedRows > 0
     } catch (error) {
       logger.error(`[MySQLUserRepository] Lỗi delete(${id}):`, error)
@@ -116,7 +131,7 @@ export class AuthRepository implements IAuthRepository {
 
   async assignRole(userRole: UserRole): Promise<void> {
     try {
-      await this.pool.query('INSERT INTO user_roles (user_id, role_id, assignedAt) VALUES (?,?,?)', [
+      await this.pool.query('INSERT INTO user_roles (user_id, role_id, assigned_at) VALUES (?, ?, ?)', [
         userRole.userId,
         userRole.roleId,
         new Date()

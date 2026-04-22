@@ -8,7 +8,8 @@ export class User {
       ...props,
       isBanned: props.isBanned ?? false,
       createdAt: props.createdAt ?? new Date(),
-      updatedAt: props.updatedAt ?? new Date()
+      updatedAt: props.updatedAt ?? new Date(),
+      roles: props.roles || []
     }
   }
 
@@ -42,6 +43,10 @@ export class User {
 
   get updatedAt() {
     return this.props.updatedAt
+  }
+
+  get roles() {
+    return this.props.roles || []
   }
 
   set fullName(value: string) {
