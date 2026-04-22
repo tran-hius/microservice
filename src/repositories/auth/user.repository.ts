@@ -6,29 +6,39 @@ import { logger } from '~/utils/logger'
 import { UserProps } from '~/types/auth/user.type'
 import { UserRole } from '~/models/auth/user.role'
 
-export class AuthRepository implements IUserRepository {
+export class UserRepository implements IUserRepository {
   private pool: Pool
 
   constructor() {
     this.pool = Database.getInstance()
   }
 
-  private mapToModel(raw: any): User {
+  private mapToModel(row: any): User {
     return new User({
-      id: raw.id,
-      fullName: raw.full_name,
-      userName: raw.user_name,
-      email: raw.email,
-      password: raw.password,
-      isBanned: Boolean(raw.is_banned),
-      createdAt: raw.created_at,
-      updatedAt: raw.updated_at
+      id: row.id,
+      fullName: row.full_name,
+      userName: row.user_name,
+      email: row.email,
+      password: row.password,
+      isBanned: Boolean(row.is_banned),
+      roles: row.role_names ? row.role_names.split(',') : [],
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
     })
   }
 
   async findById(id: number): Promise<User | null> {
     try {
-      const [rows]: any = await this.pool.query('SELECT * FROM users WHERE id = ? LIMIT 1', [id])
+      const query = `
+      SELECT u.*, GROUP_CONCAT(r.name) as role_names
+      FROM users u
+      LEFT JOIN user_roles ur ON u.id = ur.user_id
+      LEFT JOIN roles r ON ur.role_id = r.id
+      WHERE u.id = ?
+      GROUP BY u.id
+      LIMIT 1
+    `
+      const [rows]: any = await this.pool.query(query, [id])
 
       return rows.length ? this.mapToModel(rows[0]) : null
     } catch (error) {
@@ -45,26 +55,14 @@ export class AuthRepository implements IUserRepository {
     LEFT JOIN roles r ON ur.role_id = r.id
     WHERE u.email = ?
     GROUP BY u.id
+    LIMIT 1
   `
 
     const [rows]: any = await this.pool.query(query, [email])
+
     if (rows.length === 0) return null
 
-    const row = rows[0]
-
-    const roles = row.role_names ? row.role_names.split(',') : []
-
-    return new User({
-      id: row.id,
-      fullName: row.full_name,
-      userName: row.user_name,
-      email: row.email,
-      password: row.password,
-      isBanned: Boolean(row.is_banned),
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-      roles
-    })
+    return this.mapToModel(rows[0])
   }
 
   async create(user: Omit<User, 'id'>): Promise<User> {

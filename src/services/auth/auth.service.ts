@@ -88,4 +88,24 @@ export class AuthService {
       throw error
     }
   }
+
+  async refreshToken(refreshToken: string) {
+    try {
+      const tokenData = await this.tokenService.verifyRefreshToken(refreshToken)
+      if (!tokenData) {
+        throw new ForbiddenError('Refresh token is invalid or expired')
+      }
+      const user = await this.userRepository.findById(tokenData.userId)
+      if (!user || user.isBanned) {
+        throw new ForbiddenError('User not found or has been banned')
+      }
+
+      await this.tokenService.revokeUserTokens(user.id!)
+
+      return await this.tokenService.generateAuthTokens(user)
+    } catch (error) {
+      logger.error('[AuthService]: Lỗi refresh token:', error)
+      throw error
+    }
+  }
 }

@@ -13,6 +13,8 @@ services:
       DB_HOST: db
     volumes:
       - ./logs:/app/logs
+    networks:
+      - shop-network
 
   db:
     image: mysql:8.0
@@ -34,6 +36,20 @@ services:
     volumes:
       - db_data:/var/lib/mysql
       - ./src/data/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - shop-network
+  
+  redis:
+    image: redis:alpine
+    container_name: redis
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - shop-network
 
 volumes:
   db_data:
+
+networks:
+  shop-network:

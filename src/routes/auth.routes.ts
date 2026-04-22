@@ -1,16 +1,17 @@
 import { Router } from 'express'
 import { AuthController } from '~/controllers/auth.controller'
 import { AuthService } from '~/services/auth/auth.service'
-import { AuthRepository } from '~/repositories/auth/auth.repository'
+import { UserRepository } from '~/repositories/auth/user.repository'
 import { TokenService } from '~/services/auth/token.service'
 import { TokenRepository } from '~/repositories/auth/token.repository'
+import { authMiddleware } from '~/middlewares/auth.middleware'
 
 const router = Router()
 
-const authRepository = new AuthRepository()
+const userRepository = new UserRepository()
 const tokenRepository = new TokenRepository()
 const tokenService = new TokenService(tokenRepository)
-const authService = new AuthService(authRepository, tokenService)
+const authService = new AuthService(userRepository, tokenService)
 const authController = new AuthController(authService)
 
 /**
@@ -20,5 +21,14 @@ const authController = new AuthController(authService)
 
 router.post('/register', authController.register)
 router.post('/login', authController.login)
+
+router.get('/profile', authMiddleware, (req, res) => {
+  res.json({
+    message: 'Lấy profile thành công',
+    user: req.user
+  })
+})
+
+router.post('/refresh-token', authController.refreshToken)
 
 export default router
